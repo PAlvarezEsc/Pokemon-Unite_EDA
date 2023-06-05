@@ -1,0 +1,406 @@
+---
+title: 'Pokemon Unite: Análisis de Temporada'
+author: "Patricio Alvarez Escobar"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+![](images/dataset-cover.jpg)
+
+## 1. Resumen del Proyecto.
+
+Pokemon Unite es un nuevo y famoso videojuego creado para dispositivos móviles y consola Nintendo Switch. El juego se hizo popular instantáneamente después de su lanzamiento inicial en Nintendo Switch, pero creció aún más después de su lanzamiento en dispositivos móviles e incluso ganó el premio al juego del año en Play Store en la región de EE. UU. y varios otros premios en diferentes categorías en varias otras regiones en el Premios anuales de Google Play 2021.
+
+El juego, con sus virtudes y limitaciones ha captado un publico objetivo bastante variado, acaparando gamers con diferentes grados de experiencia y habilidad. Esto ha generado gran controversia en el mundo gamer, debido a que los gamers más avezados, han tenido que lidiar con el desafío de interactuar con gamers (la mayoria niños pequeños fanaticos de la serie pokemon) con habilidades técnicas menores, generando grandes dificultades en su rendimiento personal en las partidas.
+
+Junto a esta problemática, se ha criticado a los creadores y desarrolladores de Pokemon Unite, por la poca claridad sobre los aspectos del juego claves, en los cuales, los fanáticos deben cuidar y mantener atención para mejorar sus curvas de desarrollo e ascenso, sobretodo, en partidas rankeadas.
+
+En el presente proyecto se realiza un analisis exploratorio del desempeño en una temporada de Ranked de Pokemon United en diferentes momentos del dia, diferentes momentos de la semana, utilizando diferentes tipos de personajes y rols dentro del juego, analizando así los aspectos más importantes del juego, victorias, derrotas y rendimientos.
+
+## 2. Objetivos.
+
+### 2.1. Objetivos generales.
+
+Por lo tanto, los objetivos generales del presente proyecto son:
+
+-   Identificar los aspectos fundamentales del juego para mejorar el desempeño dentro de las partidas.
+
+-   Identificar las mejores alternativas horarias para jugar y mantener un buen desempeño en las partidas.
+
+### 2.2. Objetivos Específicos.
+
+-   Establecer la relación entre el rendimiento en una partida y las diferentes acciones de juego (Kills, Asistencias y Puntos convertidos).
+
+-   Analizar que Roles de juegos son más convenientes de jugar y que carriles de juegos pueden favorecer más influencia en una partida.
+
+-   Identificar los personajes (Pokemon) que más aportan victorias y que favorezcan un mejor rendimiento en las partidas.
+
+-   Identificar que momentos de la semana y del día son más factibles para tener un mejor rendimiento en partidas rankeadas.
+
+## 3. Preparación.
+
+El dataset untilizado en este proyecto corresponde a una base de datos creada en una hoja de cálculo Excel, considerando una temporada completa de ranked de Pokemon Unite (32 días).
+
+## 4. Procesamiento de los datos.
+
+La herramienta utilizada es el lenguaje de programación R para importar, transformar, limpiar, analizar y visualizar los datos. Los paquete utilizados fueron:
+
+1.  "readxl" : Es un paquete diseñado para importar hojas de Excel en formato xlsx. Es muy utilizado por ser liviano y no poseer funciones muy avanzadas.
+
+2.  "tidyverse": Es una colección de paquetes disponibles en R y orientados a la manipulación, importación, exploración y visualización de datos y que se utiliza exhaustivamente en ciencia de datos. El uso de Tidyverse permite facilitar el trabajo estadístico y la generación de trabajos reproducible
+
+### 4.1. Cargando los paquetes.
+
+Procedemos a cargar los paquetes:
+
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+### 4.2. Cargando los datos.
+
+Una vez cargados las librerías, se procede a importar el dataset con el que se trabajará y se harán los análisis que forman parte del proyecto.
+
+```{r}
+dataset <- read_excel("dataset.xlsx")
+```
+
+Procedemos a observar los datos a través de la funcion `head()`:
+
+```{r}
+head(dataset)
+```
+
+De igual forma, hacemos un resumen de los datos a traves de la funcion `summary()` para hacer una inspección general de los datos y `str()` para observar los atributos del dataset:
+
+```{r}
+summary(dataset)
+```
+
+```{r}
+str(dataset)
+```
+
+### 4.3. Limpieza y transformación de los datos.
+
+La verificaion previa si hay datos duplicadoso perdidos se hizo manualmente a través de Excel. Sin embargo, al observar el dataset, identificamos que la disposición de los datos del atributo `Fecha` esta en dormato `%DD-%MM-$$AAAA` . para nuestro análisis necesitamos que la `Fecha` esté en dás ("Lunes", "Martes", etc.) para cumplir con los análisis que cumplan los objetivos específicos del proyecto.
+
+Para lograr esto, hay que agregar una columna de dia de la semana en el formato requerido de manera que nos sirva para los análisis, como por ejemplo, para verificar que dia de la semana es más efectivo jugar:
+
+```{r}
+dataset$Fecha <- format(as.Date(dataset$Fecha), "%A")
+head(dataset)
+```
+
+Se observa que el formato de `Fecha` ha sido modificado y ahora se muestra en días. Ahora se puede proceder con los análisis.
+
+## 5. Análisis.
+
+Una vez procesados los datos, hago una inspección de los datos a través de la funcción `summary()`, en función de los siguientes parámetros:
+
+-   Puntos marcados.
+
+-   Kills obtenidas.
+
+-   Asistencias generadas.
+
+-   Nivel final alcanzado.
+
+-   Valoración en la partida.
+
+```{r}
+summary(dataset$`Puntos Marcados`)
+summary(dataset$Kills)
+summary(dataset$Asistencias)
+summary(dataset$Nivel)
+summary(dataset$Valoracion)
+```
+
+### 5.1 Cambiar formato atributo "Fecha".
+
+Ahora necesito obtener el promedio de cada uno de los parametros mencionados anteriormente en función del día de a semana, es por eso que es necesario modificar y ordenar el atributo fecha para que aparezca como día de la semana y ordenado.
+
+```{r}
+dataset$Fecha <- ordered(dataset$Fecha, 
+                                   levels=c("domingo", "martes", "miércoles", "jueves", "viernes", "sábado"))
+
+head(dataset$Fecha)
+```
+
+### 5.2 Obtención de promedios.
+
+#### 5.2.1. Obtención de promedio por dia de la semana.
+
+```{r}
+AVG_por_dia<- dataset %>% 
+  group_by(Fecha) %>%  
+  summarise(`Puntos Marcados` = mean(`Puntos Marcados`), 
+            Kills = mean(Kills),
+            Asistencias = mean(Asistencias),
+            Nivel = mean(Nivel),
+            Valoracion = mean(Valoracion)) %>%
+  arrange(Fecha)
+
+head(AVG_por_dia)
+
+```
+
+Los resultados por día muestran un patrón difuso de comportamiento de los atributos en estudio, sin embargo, pareciera que los promedios muestras mejores valores para el día sábado.
+
+#### 5.2.2 Obtención de promedio por momento del dia.
+
+```{r}
+AVG_por_momento<- dataset %>%
+  group_by(`Momento del dia`) %>%
+  summarise(`Puntos Marcados` = mean(`Puntos Marcados`), 
+            Kills = mean(Kills),
+            Asistencias = mean(Asistencias),
+            Nivel = mean(Nivel),
+            Valoracion = mean(Valoracion)) %>%
+  arrange(`Momento del dia`)
+
+head(AVG_por_momento)
+```
+
+Los resultados muestran que existen mejores promedios cuando se juega en la tarde y en la noche.
+
+#### 5.2.3 Obtención de promedio por momento de la semana.
+
+```{r}
+AVG_semana<- dataset %>%
+  group_by(`Dia de la Semana`) %>%
+  summarise(`Puntos Marcados` = mean(`Puntos Marcados`), 
+            Kills = mean(Kills),
+            Asistencias = mean(Asistencias),
+            Nivel = mean(Nivel),
+            Valoracion = mean(Valoracion)) %>%
+  arrange(`Dia de la Semana`)
+head(AVG_semana)
+```
+
+Los resultados muestran que existen mejores promedios en los fines de semana respecto a jugar en la semana.
+
+```         
+\pagebreak
+```
+
+#### 5.2.4 Obtención de promedio por rol.
+
+```{r}
+AVG_rol<- dataset %>%
+  group_by(Rol) %>%
+  summarise(`Puntos Marcados` = mean(`Puntos Marcados`), 
+            Kills = mean(Kills),
+            Asistencias = mean(Asistencias),
+            Nivel = mean(Nivel),
+            Valoracion = mean(Valoracion)) %>%
+  arrange(Rol)
+head(AVG_rol)
+```
+
+#### 5.2.5 Obtención de promedios por Pokemon.
+
+```{r}
+# obtencion de promedios por Pokemon
+
+AVG_pokemon<- dataset %>%
+  group_by(Pokemon) %>%
+  summarise(`Puntos Marcados` = mean(`Puntos Marcados`), 
+            Kills = mean(Kills),
+            Asistencias = mean(Asistencias),
+            Nivel = mean(Nivel),
+            Valoracion = mean(Valoracion)) %>%
+  arrange(Pokemon)
+head(AVG_pokemon)
+```
+
+## 6. Visualizaciones.
+
+Una vez analizados los datos y observados los patrones que presentan, procedemos a visualizar los resultados obtenidos.
+
+### 6.1 Estableciendo relaciones.
+
+Para identificar los elementos principales del juego a considerar para tener un buen rendimiento, se estableció la "Valoracion obtenida" como un indicador de rendimiento. La valoración, es un indicador del juego que va de 0 a 100 y establece qué tan bueno fue el desempeño del jugador dentro de la partida, considerando Puntos marcados, Kills obtenidas y asistencias.
+
+Este indicador fue relacionado con los distintos parametros del juego para reconoer los más influyentes para el rendimiento del jugador.
+
+#### 6.1.1 ¿Existe relación entre los Puntos Marcados y el rendimiento obtenido en la Partida?.
+
+Los puntos marcados en Pokemon United consiste en las puntuaciones que el jugador realiza en cada uno de los arcos de puntuación rivales, los cuales se suman a un marcador final que determina la victoria o derrota de un equipo.
+
+```{r, echo = FALSE}
+
+dataset %>% 
+  group_by(Pokemon) %>%  
+  summarise(Average_Puntos_Marcados = mean(`Puntos Marcados`),
+            Average_Valoracion = mean(Valoracion)) %>% 
+  arrange(Pokemon) %>%
+  ggplot(aes(x = Average_Puntos_Marcados , y = Average_Valoracion )) + 
+  labs(title="Puntos Marcados y Valoración", x = "Puntos Marcados", y = "Valoración") +
+  geom_line(color="purple") +
+  theme_classic()
+
+```
+
+Los resultados muestran que existe una relación positiva entre la cantidad de puntos marcados y la valoración obtenida en las partidas de la temporada.
+
+#### 6.1.2 ¿Existe relación entre Kills obtenidas y el rendimiento obtenido en la partida?.
+
+Las Kills o asesinatos, son una situación de juego en Pokemon United, en la cual, un personaje derrota a otro en una batalla, ya sea uno a uno o en una pelea de equipo. Las kills no suman al marcador final, pero ayudan al personaje a subir de nivel.
+
+```{r, echo = FALSE}
+
+dataset %>% 
+  group_by(Pokemon) %>%  
+  summarise(Average_kills = mean(Kills),
+            Average_Valoracion = mean(Valoracion)) %>% 
+  arrange(Pokemon) %>%
+  ggplot(aes(x = Average_kills , y = Average_Valoracion )) + 
+  labs(title=" Kills y Valoración", x = "Kills", y = "Valoración") +
+  geom_line(color="red") + 
+  theme_classic()
+
+```
+
+Los resultados muestras que, a pesar de algunos datos perturbadores, existe una relación positiva entre las Kills y la valoración obtenidas en la temporada.
+
+#### 6.1.3 ¿Hay relación entre los Asistencias y el rendimiento obtenido en la partida?.
+
+Las asistencias son una situación de juego en Pokemon Unite, en la cual, si bien, no derrotas al pokemon rival, ayudas a tus compañeros a derrotarlo en alguna pelea de equipo. Al igual que las kill no suman al marcador final, pero suaman experiencia al personaje y suman nivel.
+
+```{r, echo = FALSE}
+
+dataset %>% 
+  group_by(Pokemon) %>%  
+  summarise(Average_Asistencias = mean(Asistencias),
+            Average_Valoracion = mean(Valoracion)) %>% 
+  arrange(Pokemon) %>%
+  ggplot(aes(x = Average_Asistencias , y = Average_Valoracion )) + 
+  labs(title="Asistencias y Valoración", x = "Asistencias" , y = "Valoración") +
+  geom_line(color="orange") +
+  theme_classic()
+```
+
+Los resultados muestran que existe una relación negativa entre el número de asistencias obtenidas y la valoración obtenidas en la temporada.
+
+### 6.2 ¿Cuándo es mejor jugar partidas Ranked?.
+
+Para identificar cuando en es mejor jugar partidas ranked se inspeccionó cuándo existía un mejor promedio entre las valoraciones obtenidas por día y los días jugados y los momentos del día en que se jugó en la temporada.
+
+#### 6.2.1 Rendimeinto por día de la semana.
+
+Para determinar el rendimiento se inspeccionaron los promedios de valoración por día de la semana en los cuales se jugaron partidas ranked en la temporada.
+
+```{r, echo=FALSE}
+
+dataset %>% 
+  group_by(Fecha) %>%  
+  summarise(Valoración = mean(Valoracion)) %>% 
+  arrange(Fecha) %>%
+  ggplot(aes(x = Fecha , y = Valoración, fill = Valoración)) + 
+  labs(title="Rendimiento por día de la semana", x = NULL , y = "Valoración") +
+  geom_col()+
+  scale_fill_gradient(low="purple", high="orange")+
+  theme_classic()
+```
+
+Los resultados no muestran un patrón claro de que dia de la semana es más adecuado jugar, sin embargo, los resultados muestran que el día viernes se obtuvo el peor rendimiento en las partidas.
+
+#### 6.2.2 ¿En qué momento de la semana es más adecuado Jugar?.
+
+Para respaldar lo anterior, se verifica en qué momentos de la semana existió un mejor rendimiento en las partidas ranked.
+
+```{r, echo=FALSE}
+
+dataset %>% 
+  group_by(`Dia de la Semana`) %>%  
+  summarise(Valoración = mean(Valoracion)) %>% 
+  arrange(`Dia de la Semana`) %>%
+  ggplot(aes(x = `Dia de la Semana` , y = Valoración, fill = Valoración)) + 
+  labs(title="Valoracion por Momento de la semana", x = NULL, y = "Valoración") +
+  geom_col() + 
+  scale_fill_gradient(low="purple", high="orange")+
+  theme_classic()
+
+```
+
+Los resultados muestran que existe una mejor valoración en las partidas jugadas en los fin de semana, aunque la diferencia no es determinante entre ambos momentos del día.
+
+#### 6.2.3 ¿En qué momento del dia hay mejor rendimiento en las partidas?.
+
+Para identificar en que momento del día es más adecuado jugar, se inspeccionó la valoración obtenida en la partida entre jugar en la día (09::00 am y 13:00 pm), tarde (13:00 pm y 20:00 pm) y la noche (21:oo pm y 02:00 am) en los cuales se registraron partidas de pokemon united.
+
+```{r, echo=FALSE}
+dataset %>% 
+  group_by(`Momento del dia`) %>%  
+  summarise(Valoración = mean(Valoracion)) %>% 
+  arrange(`Momento del dia`) %>%
+  ggplot(aes(x = `Momento del dia` , y = Valoración, fill = Valoración)) + 
+  labs(title="Valoracion por Momento del dia", x = NULL, y = "Valoración") +
+  geom_col() +
+  scale_fill_gradient(low="purple", high="orange") +
+  theme_classic()
+```
+
+A diferencia de los resultados por día, donde se vió un patrón poco diferenciado, los resultados por moemento del día muestran una clara diferencia, en la cual, jugar de noche favorece el rendmiento en partidas ranked en pokemon United.
+
+### 6.3 Evaluación por Personajes y rol.
+
+Para identificar que perosnajes y que roles de pokemon Unite son más favorables de utilizar para tener un buen desempeño en las partidas, se evaluó el rendimiento de cada uno de ellos en base a la valoración obtenidas con cada uno de ellos.
+
+#### 6.3.1 Evaluación por personaje.
+
+Los personajes de Pokemon United son pokemon con diferentes características dependiento del rol que ocupen. Existen Pokemon que son más duros y fuertes, los cuales se llaman tanques. Estos quizas no hacen mayor daño, pero tienen mucha vida y son dificiles de derrotar. Estan los pokemon de ataque, los cuales hacen mucho daño, pero tienen poca vida. Finalmente estan los equilibrados, pokemon que tienen una adecuada cantidad de vuda y hacen un buen daño.
+
+```{r, echo=FALSE}
+
+dataset %>% 
+  group_by(Pokemon) %>%  
+  summarise(Valoración= mean(Valoracion)) %>% 
+  arrange(Pokemon) %>%
+  ggplot(aes(x = Pokemon , y = Valoración, fill = Valoración)) + 
+  labs(title="Valoracion por Pokemon", x = NULL, y = "Valoración") +
+  geom_col() + 
+  scale_fill_gradient(low="purple", high="orange")+
+  theme_classic()
+
+```
+
+Los resultados muestran que los mejores rendimientos estan con Gengar, Lucario, Mamoswine. Scissor y Wigglituf, mientras que los que menor rendimiento presentaron fueron Glaceon, Charizard y Slowbro.
+
+#### 6.3.2 Evaluación por Rol.
+
+Pokemon Unite tiene varios roles que utilizar, entre ellos están: Support, que tienen cualidades de cura y protección para otros personajes del juego, estan los Defenders, que hacen habilidades de defensa e inpiden que el rival haga puntos. También estan los All rouders, que son pokemons equilibrados que hacen labores de ataque y defensa a la vez y su función es marcar puntos y, finalmente, los attackers y speedester, que hacen funciones de atacar y hacer asesinatos para ayudar a que el equipo haga puntos.
+
+Para evaluar su rendimiento, es inspeccionó el promedio de valoración obtenida en la temporada por cada uno de estos roles utilizados en la temporada.
+
+```{r, echo=FALSE}
+
+dataset %>% 
+  group_by(Rol) %>%  
+  summarise(Valoración = mean(Valoracion)) %>% 
+  arrange(Rol) %>%
+  ggplot(aes(x = Rol , y = Valoración, fill = Valoración)) + 
+  labs(title="Valoración por Rol", x = NULL) +
+  geom_col() + 
+  scale_fill_gradient(low="purple", high="orange")+
+  theme_classic()
+
+```
+
+Los resultados muestran que los roles con mejor rendimiento obetnido en la temporada son Speedester, Defender y Support. Por su parte, los de peor rendimeinto en la temporada fueron All Rouder y Ataccker.
+
+## 7. Conclusiones
+
+Pokemon Unite es un juego que, si bien es bastante intuitivo, requiere de ciertas situaciones de juego que siempre deben tenerse en cuenta y cuidar de ellas para tener un buen rendimiento y lograr ganar partidas.
+
+Los resultados mostraron que existe una relación positiva entre la cantidad de puntos marcados y las kills obtenidas. Ambas situaciones del juego son de suma importancia y aportan a la valoracion y rendimiento en la partida, por lo tanto, se sugiere tener cuidado con ellas y potenciarlas dentro de la partida. Caso contrario con las asistencias. Si bien son importante al momento de ayudar al equipo, los resultados llevan a la conclusion que no son determinantes al momento de la valoración final obtenida.
+
+Otra situación importante a tener en cuenta a partir de los resultados, tiene que ver con el momento del dia y de la semana en el cual es adecuado jugar Pokemon Unite. Los resultados arrojaron que jugar de noche y en un fin de semana entrega un mejor promedio de rendimiento en las partidas. Esto iría de acuerdo con el razonamiento de que "personas de mayor edad" y "mayor experiencia en el juego" se conectarían a esas horas, por lo que ayudaría a mantener un nivel más elevado de juego. Sería interesante investigar si existe relación entre el rango etario y el rendimiento en pokemon unite y si influyen en el rendimeinto en partidas. Por ahora , los resultados indican que jugar de noche y en fin de semana es recomendable para tener un mejor rendimiento en partidas.
+
+Finalmente, los mejores roles para jugar pokemon unite fueron Speedster, como Gengar, defenders como Mamoswine y support como Wigglituf, los cueles tuvieron los mejores rendimientos según los resultados obtenidos.
